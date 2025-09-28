@@ -10,6 +10,12 @@ import (
 	"github.com/sisisin/op-lg43ud79/pkg/lg43client"
 )
 
+const (
+	PID   = "6001"
+	VID   = "0403"
+	SetId = "01"
+)
+
 func RunSwitchDP(ctx context.Context, osArgs []string) error {
 	f := flag.NewFlagSet("switchdp", flag.ExitOnError)
 	debug := f.Bool("debug", false, "enable debug logging")
@@ -20,10 +26,8 @@ func RunSwitchDP(ctx context.Context, osArgs []string) error {
 		ctx = lg43client.WithLogLevel(ctx, lg43client.LogLevelDebug)
 	}
 
-	const SetID = "01"
-
-	logDebug(ctx, "instantiating LG43Client with SetID=%s", SetID)
-	lg43, err := lg43client.NewLG43Client(ctx, SetID)
+	logDebug(ctx, "instantiating LG43Client with PID=%s VID=%s", PID, VID)
+	lg43, err := lg43client.NewLG43Client(ctx, &lg43client.Config{VID: VID, PID: PID})
 	if err != nil {
 		return errors.Wrap(err, "NewLG43Client failed")
 	}
@@ -31,14 +35,14 @@ func RunSwitchDP(ctx context.Context, osArgs []string) error {
 
 	logInfo(ctx, "prepare to switch to DP1")
 	// NOTE: wake up display from sleep
-	if res, err := lg43.PowerOn(ctx); err != nil {
+	if res, err := lg43.PowerOn(ctx, SetId); err != nil {
 		return errors.Wrap(err, "PowerOn failed")
 	} else {
 		logInfo(ctx, "PowerOn response: %s", res)
 	}
 
 	logInfo(ctx, "switching to DP1")
-	if res, err := lg43.InputSelectToDP1(ctx); err != nil {
+	if res, err := lg43.InputSelectToDP1(ctx, SetId); err != nil {
 		return errors.Wrap(err, "InputSelectToDP1 failed")
 	} else {
 		logInfo(ctx, "InputSelectToDP1 response: %s", res)
@@ -56,21 +60,20 @@ func RunSwitchHDMI4(ctx context.Context, osArgs []string) error {
 		ctx = withLogLevel(ctx, LogLevelDebug)
 		ctx = lg43client.WithLogLevel(ctx, lg43client.LogLevelDebug)
 	}
-	const SetID = "01"
-	lg43, err := lg43client.NewLG43Client(ctx, SetID)
+	lg43, err := lg43client.NewLG43Client(ctx, &lg43client.Config{VID: VID, PID: PID})
 	if err != nil {
 		return errors.Wrap(err, "NewLG43Client failed")
 	}
 	defer lg43.Close()
 
 	// NOTE: wake up display from sleep
-	if res, err := lg43.PowerOn(ctx); err != nil {
+	if res, err := lg43.PowerOn(ctx, SetId); err != nil {
 		return errors.Wrap(err, "PowerOn failed")
 	} else {
 		logInfo(ctx, "PowerOn response: %s", res)
 	}
 
-	if res, err := lg43.InputSelectToHDMI4(ctx); err != nil {
+	if res, err := lg43.InputSelectToHDMI4(ctx, SetId); err != nil {
 		return errors.Wrap(err, "InputSelectToHDMI4 failed")
 	} else {
 		logInfo(ctx, "InputSelectToHDMI4 response: %s", res)
@@ -98,7 +101,7 @@ func RunWriteLG43(ctx context.Context, osArgs []string) error {
 	}
 	cmd, setId, data := args[0], args[1], args[2]
 
-	lg43, err := lg43client.NewLG43Client(ctx, setId)
+	lg43, err := lg43client.NewLG43Client(ctx, &lg43client.Config{VID: VID, PID: PID})
 	if err != nil {
 		return errors.Wrap(err, "NewLG43Client failed")
 	}

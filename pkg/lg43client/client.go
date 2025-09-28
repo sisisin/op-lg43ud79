@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"go.bug.st/serial"
@@ -12,20 +13,22 @@ import (
 )
 
 type LG43Client struct {
-	port  serial.Port
-	setId string
+	port serial.Port
 }
 
-const DeviceSerialNumber = "FTEM5CHZ"
+type Config struct {
+	VID string
+	PID string
+}
 
-func NewLG43Client(ctx context.Context, setId string) (*LG43Client, error) {
+func NewLG43Client(ctx context.Context, c *Config) (*LG43Client, error) {
 	ports, err := enumerator.GetDetailedPortsList()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list serial ports")
 	}
 	var portName string
 	for _, p := range ports {
-		if p.SerialNumber == DeviceSerialNumber {
+		if p.PID == c.PID && p.VID == c.VID {
 			portName = p.Name
 			break
 		}
@@ -45,12 +48,10 @@ func NewLG43Client(ctx context.Context, setId string) (*LG43Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open serial port")
 	}
-	// Set read timeout to make port.Read() non-blocking
-	// port.SetReadTimeout(1 * time.Millisecond)
-	// port.SetReadTimeout(10 * time.Second)
+	// Read method will block until at least one byte is received, or the read timeout is reached.
+	port.SetReadTimeout(1 * time.Second)
 	return &LG43Client{
-		port:  port,
-		setId: setId,
+		port: port,
 	}, nil
 }
 
@@ -60,22 +61,24 @@ func (c *LG43Client) Close() {
 	}
 }
 
-func (c *LG43Client) PowerOn(ctx context.Context) (response string, err error) {
-	w := fmt.Sprintf("ka %s 01\r", c.setId)
+func (c *LG43Client) PowerOn(ctx context.Context, setId string) (response string, err error) {
+	w := fmt.Sprintf("ka %s 01\r", setId)
 	return c.Write(ctx, []byte(w))
 }
 
-func (c *LG43Client) InputSelectToDP1(ctx context.Context) (response string, err error) {
-	w := fmt.Sprintf("xb %s C0\r", c.setId)
+func (c *LG43Client) InputSelectToDP1(ctx context.Context, setId string) (response string, err error) {
+	w := fmt.Sprintf("xb %s C0\r", setId)
 	return c.Write(ctx, []byte(w))
 }
 
-func (c *LG43Client) InputSelectToHDMI4(ctx context.Context) (response string, err error) {
-	w := fmt.Sprintf("xb %s 93\r", c.setId)
+func (c *LG43Client) InputSelectToHDMI4(ctx context.Context, setId string) (response string, err error) {
+	w := fmt.Sprintf("xb %s 93\r", setId)
 	return c.Write(ctx, []byte(w))
 }
 
 func (c *LG43Client) Write(ctx context.Context, buf []byte) (response string, err error) {
+	writeTimeout := time.After(10 * time.Second)
+
 	logDebug(ctx, "Write: %s", strings.TrimSpace(string(buf)))
 	if _, err = c.port.Write(buf); err != nil {
 		return "", errors.Wrap(err, "failed to write to serial port")
@@ -87,6 +90,8 @@ func (c *LG43Client) Write(ctx context.Context, buf []byte) (response string, er
 		case <-ctx.Done():
 			logInfo(ctx, "Cancelled, exiting read loop")
 			return "", ctx.Err()
+		case <-writeTimeout:
+			return "", errors.New("Write timeout waiting for response")
 		default:
 		}
 
@@ -94,8 +99,8 @@ func (c *LG43Client) Write(ctx context.Context, buf []byte) (response string, er
 		if n, err := c.port.Read(buff); err != nil {
 			return "", errors.Wrap(err, "failed to read from serial port")
 		} else if n == 0 {
-			logDebug(ctx, "Read: 0 bytes, assuming end of response")
-			break
+			logDebug(ctx, "Read: 0 bytes. Maybe timeout, retrying...")
+			continue
 		} else if buff[n-1] == '\r' {
 			logDebug(ctx, "Read: %d bytes, end of response detected", n)
 			break
