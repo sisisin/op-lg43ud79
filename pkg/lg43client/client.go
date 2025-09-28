@@ -16,19 +16,22 @@ type LG43Client struct {
 	port serial.Port
 }
 
-type Config struct {
-	VID string
-	PID string
-}
+type vidType string
 
-func NewLG43Client(ctx context.Context, c *Config) (*LG43Client, error) {
+func VID(v string) vidType { return vidType(v) }
+
+type pidType string
+
+func PID(v string) pidType { return pidType(v) }
+
+func NewLG43Client(ctx context.Context, vid vidType, pid pidType) (*LG43Client, error) {
 	ports, err := enumerator.GetDetailedPortsList()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list serial ports")
 	}
 	var portName string
 	for _, p := range ports {
-		if p.PID == c.PID && p.VID == c.VID {
+		if p.PID == string(pid) && p.VID == string(vid) {
 			portName = p.Name
 			break
 		}

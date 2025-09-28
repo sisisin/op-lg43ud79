@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	PID   = "6001"
 	VID   = "0403"
+	PID   = "6001"
 	SetId = "01"
 )
 
@@ -27,7 +27,7 @@ func RunSwitchDP(ctx context.Context, osArgs []string) error {
 	}
 
 	logDebug(ctx, "instantiating LG43Client with PID=%s VID=%s", PID, VID)
-	lg43, err := lg43client.NewLG43Client(ctx, &lg43client.Config{VID: VID, PID: PID})
+	lg43, err := lg43client.NewLG43Client(ctx, lg43client.VID(VID), lg43client.PID(PID))
 	if err != nil {
 		return errors.Wrap(err, "NewLG43Client failed")
 	}
@@ -60,7 +60,7 @@ func RunSwitchHDMI4(ctx context.Context, osArgs []string) error {
 		ctx = withLogLevel(ctx, LogLevelDebug)
 		ctx = lg43client.WithLogLevel(ctx, lg43client.LogLevelDebug)
 	}
-	lg43, err := lg43client.NewLG43Client(ctx, &lg43client.Config{VID: VID, PID: PID})
+	lg43, err := lg43client.NewLG43Client(ctx, lg43client.VID(VID), lg43client.PID(PID))
 	if err != nil {
 		return errors.Wrap(err, "NewLG43Client failed")
 	}
@@ -101,7 +101,7 @@ func RunWriteLG43(ctx context.Context, osArgs []string) error {
 	}
 	cmd, setId, data := args[0], args[1], args[2]
 
-	lg43, err := lg43client.NewLG43Client(ctx, &lg43client.Config{VID: VID, PID: PID})
+	lg43, err := lg43client.NewLG43Client(ctx, lg43client.VID(VID), lg43client.PID(PID))
 	if err != nil {
 		return errors.Wrap(err, "NewLG43Client failed")
 	}
