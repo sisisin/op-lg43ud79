@@ -1,0 +1,10 @@
+[env]
+DISPLAY_SWITCH_LOG_PATH="{{env.HOME}}/Library/Logs/display-switch/display-switch.log"
+DISPLAY_SWITCH_INI_PATH="{{env.HOME}}/Library/Preferences/display-switch.ini"
+
+[tasks.build]
+run = [
+  "go build -o bin/writelg43 cmd/writelg43/main.go",
+  "go build -o bin/switchdp cmd/switchdp/main.go",
+  "go build -o bin/switchhdmi4 cmd/switchhdmi4/main.go",
+]
