@@ -1,6 +1,14 @@
 package lg43client
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/cockroachdb/errors"
+)
+
+var (
+	ErrorDeviceNotFound = errors.New("device not found")
+)
 
 type ErrorCommandRejected struct {
 	rawAck string

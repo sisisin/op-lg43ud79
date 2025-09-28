@@ -37,7 +37,7 @@ func NewLG43Client(ctx context.Context, vid vidType, pid pidType) (*LG43Client, 
 		}
 	}
 	if portName == "" {
-		return nil, errors.Errorf("device not found")
+		return nil, ErrorDeviceNotFound
 	}
 
 	mode := &serial.Mode{

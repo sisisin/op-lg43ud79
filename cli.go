@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/sisisin/op-lg43ud79/pkg/lg43client"
@@ -16,6 +17,26 @@ const (
 	SetId = "01"
 )
 
+const attempts = 3
+
+func getClient(ctx context.Context) (*lg43client.LG43Client, error) {
+	logDebug(ctx, "instantiating LG43Client with PID=%s VID=%s", PID, VID)
+
+	for retry := range attempts {
+		lg43, err := lg43client.NewLG43Client(ctx, lg43client.VID(VID), lg43client.PID(PID))
+		if err != nil {
+			if errors.Is(err, lg43client.ErrorDeviceNotFound) && retry < attempts {
+				logDebug(ctx, "device not found, retrying... (%d)", retry)
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			return nil, errors.Wrap(err, "NewLG43Client failed")
+		}
+		return lg43, nil
+	}
+	return nil, fmt.Errorf("failed to connect to device after %d attempts", attempts)
+}
+
 func RunSwitchDP(ctx context.Context, osArgs []string) error {
 	f := flag.NewFlagSet("switchdp", flag.ExitOnError)
 	debug := f.Bool("debug", false, "enable debug logging")
@@ -26,10 +47,9 @@ func RunSwitchDP(ctx context.Context, osArgs []string) error {
 		ctx = lg43client.WithLogLevel(ctx, lg43client.LogLevelDebug)
 	}
 
-	logDebug(ctx, "instantiating LG43Client with PID=%s VID=%s", PID, VID)
-	lg43, err := lg43client.NewLG43Client(ctx, lg43client.VID(VID), lg43client.PID(PID))
+	lg43, err := getClient(ctx)
 	if err != nil {
-		return errors.Wrap(err, "NewLG43Client failed")
+		return err
 	}
 	defer lg43.Close()
 
@@ -60,9 +80,10 @@ func RunSwitchHDMI4(ctx context.Context, osArgs []string) error {
 		ctx = withLogLevel(ctx, LogLevelDebug)
 		ctx = lg43client.WithLogLevel(ctx, lg43client.LogLevelDebug)
 	}
-	lg43, err := lg43client.NewLG43Client(ctx, lg43client.VID(VID), lg43client.PID(PID))
+
+	lg43, err := getClient(ctx)
 	if err != nil {
-		return errors.Wrap(err, "NewLG43Client failed")
+		return err
 	}
 	defer lg43.Close()
 
@@ -101,9 +122,9 @@ func RunWriteLG43(ctx context.Context, osArgs []string) error {
 	}
 	cmd, setId, data := args[0], args[1], args[2]
 
-	lg43, err := lg43client.NewLG43Client(ctx, lg43client.VID(VID), lg43client.PID(PID))
+	lg43, err := getClient(ctx)
 	if err != nil {
-		return errors.Wrap(err, "NewLG43Client failed")
+		return err
 	}
 	defer lg43.Close()
 
